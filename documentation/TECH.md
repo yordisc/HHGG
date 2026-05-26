@@ -1,41 +1,134 @@
-# Arquitectura y stack
+# Arquitectura, stack y operaciones (TECH)
+
+Este documento amplía información técnica y operativa del proyecto: stack, desarrollo local, despliegue, pruebas, CI, bases de datos, observabilidad y buenas prácticas.
 
 ## Stack principal
 
-- Laravel 11
-- Livewire 4
-- PHP 8.4
-- Tailwind CSS y Vite
-- MySQL o PostgreSQL segun entorno
-- `barryvdh/laravel-dompdf` para PDF
+- Framework: Laravel 11
+- Frontend: Livewire 4 + Blade, Tailwind CSS, Vite
+- Lenguaje: PHP 8.4
+- DB: MySQL o PostgreSQL (según entorno)
+- PDF: barryvdh/laravel-dompdf
+- Jobs/Cola: configurables (por defecto `sync` en testing)
 
-## Piezas clave
+## Arquitectura y componentes clave
 
-- Modelos para certificaciones, preguntas, traducciones, certificados, versiones y auditoria.
-- Controladores publicos para home, busqueda, quiz, certificados y verificacion.
-- Controladores admin para preguntas, usuarios, plantillas, import/export y dashboard.
-- Servicios para scoring, elegibilidad, expulsion de datos caducados, versionado e importacion.
-- Jobs y comandos para limpieza, purga y tareas programadas.
+- Modelos: `Certification`, `Question`, `QuestionTranslation`, `Certificate`, `CertificateTemplate`, `CertificationVersion`, `ImportLog`.
+- Controladores públicos: home, búsqueda, quiz, certificados, verificación.
+- Panel admin: gestión de certificaciones, preguntas, plantillas, import/export, usuarios y dashboard.
+- Servicios: scoring, elegibilidad, import/export ZIP, validación CSV, versionado y reglas automáticas.
+- Jobs/Comandos: import queue, purga/retención de datos, exportaciones, scheduler commands.
 
-## Decisiones operativas
+## Desarrollo local
 
-- En produccion la app corre con Docker, Nginx y PHP-FPM.
-- Las migraciones se ejecutan fuera del contenedor web.
-- La cola en produccion usa `sync` para evitar infraestructura adicional en el plan base.
-- El scheduler puede ejecutarse por webhook protegido si no hay cron nativo.
-- Redis se usa para cache y sesiones en produccion cuando esta disponible.
+- Requisitos: PHP 8.4, Composer, Node.js (npm/yarn), MySQL/Postgres o Docker.
+- Pasos rápidos:
 
-## Datos y mantenimiento
+```bash
+cp .env.example .env
+composer install --no-interaction --prefer-dist
+npm install
+php artisan key:generate
+php artisan migrate --seed
+npm run dev
+php artisan serve --host=0.0.0.0 --port=8000
+```
 
-- Las certificaciones usan versionado para conservar historial y permitir rollback.
-- La importacion y exportacion de paquetes ZIP esta cubierta por validacion previa y pruebas.
-- El sistema maneja reglas de caducidad, retencion y purga automatica.
-- Las preguntas soportan traducciones por locale y contratos CSV multilenguaje.
+- Si usas Docker, ver `docker/` y `docker/start-container.sh` para empezar servicios.
 
-## Cobertura de pruebas
+## Ejecutar tests localmente
 
-- Flujos de quiz y practica.
-- Importacion y exportacion de certificaciones.
-- Validacion de certificados y PDF.
-- Versionado, reversa y eliminacion segura.
-- Scheduler webhook y provisionamiento del admin principal.
+- Unitarios:
+
+```bash
+composer test:unit
+```
+
+- Feature (requieren DB/servicios):
+
+```bash
+composer test:feature
+```
+
+- Ejecutar un fichero o test específico:
+
+```bash
+php artisan test --filter="NombreDeTest"
+vendor/bin/phpunit tests/Feature/SomeTest.php
+```
+
+Nota: ver `phpunit.xml` para variables de entorno recomendadas (DB de testing, cache en array, etc.).
+
+## Integración continua (CI)
+
+- Recomendación de jobs mínimos para GitHub Actions / GitLab CI:
+    - `lint` (pint/php-cs-fixer, markdownlint)
+    - `test:unit` (rápido, sin servicios externos)
+    - `test:feature` (en runner con DB; usar service containers para MySQL)
+    - `build_assets` (compilar CSS/JS con Vite para releases)
+    - `security_scan` (opcional: Composer audit, SAST)
+
+- Ejemplo: separar `unit` y `feature` en jobs distintos para paralelizar y acelerar feedback.
+
+## Base de datos y migraciones
+
+- Las migraciones se almacenan en `database/migrations`. Use `php artisan migrate --graceful` en despliegues.
+- Para pruebas usar DB de testing indicada en `phpunit.xml` (`certificados_test`).
+- Seeds para datos de ejemplo en `database/seeders`.
+
+## Import / Export (paquetes ZIP)
+
+- El sistema soporta importación/exportación de certificaciones en paquetes ZIP con `manifest.json`, `questions.csv`, `template.html` y carpeta `assets/`.
+- Hay validación previa para evitar corrupciones y mecanismos de rollback para evitar persistir partiales.
+
+## Observabilidad y registros
+
+- Logging: Laravel log (`storage/logs/laravel.log`) y canal configurable vía `config/logging.php`.
+- Errores críticos: usar Sentry/LogRocket o similar en producción.
+- Monitorización: exportar métricas a Prometheus o usar servicios APM para endpoints críticos (import, export, generación PDF).
+
+## Backups y recuperación
+
+- Hacer backups regulares de la base de datos y de `public/Certificates` (assets exportados).
+- Mantener un proceso de restauración documentado y probado en staging.
+
+## Seguridad y buenas prácticas
+
+- Variables sensibles en el entorno `.env`; no subir nunca a VCS.
+- Validar y sanitizar archivos ZIP y CSV antes de procesarlos.
+- Limitar tamaños de uploads y escanear/limpiar nombres de archivos.
+- Usar HTTPS y cabeceras de seguridad (CSP, HSTS, X-Frame-Options).
+
+## Rendimiento
+
+- Cache: usar Redis para cache y sesiones en producción si está disponible.
+- Optimizar consultas: revisar N+1 en lista de certificados/preguntas.
+- Assets: servir imágenes estáticas desde CDN/objeto storage en producción.
+
+## Operaciones y despliegue
+
+- Imagen Docker / Compose: proveer servicio `php-fpm`, `nginx`, `db` y `runner` para queues.
+- Migraciones en despliegue: ejecutar `php artisan migrate --force` en release step.
+- Colas: en entornos con tráfico, configurar `queue:work` con supervisor/systemd o usar servicios gestionados.
+
+## Contribuir y estilo de código
+
+- Formato y linting: `composer run-script pint` / `npx eslint` para JS si aplica.
+- Tests: PRs deben incluir pruebas unitarias para lógica y tests feature para cambios en endpoints.
+- Documentación: actualizar `docs/` y `docs/public-docs/TECH.md` para cambios de alto nivel.
+
+## Comandos útiles
+
+```bash
+composer install
+composer test:unit
+composer test:feature
+php artisan migrate --seed
+php artisan queue:work
+npm run build
+```
+
+Si quieres, puedo:
+
+- Añadir un workflow de GitHub Actions que implemente la propuesta de CI.
+- Documentar cada test en `tests/Unit` como hicimos con `tests/Feature`.
