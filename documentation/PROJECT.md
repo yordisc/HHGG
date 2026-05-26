@@ -56,11 +56,10 @@ HHGG combina una fachada formal con contenido satírico para simular una platafo
 
 ## Estructura del repositorio (relevante)
 
-- `app/` — código de aplicación (Models, Http, Services, Jobs, Actions).
-- `tests/` — pruebas `Feature` y `Unit` (ver `docs/public-docs/TEST.md`).
-- `docs/` — documentación, fixtures y guías.
-- `public/Certificates/` — assets públicos de certificaciones y plantillas exportadas.
-- `database/` — migraciones, seeders y factories.
+## Recursos visuales
+
+- El índice de capturas está en [docs/public-docs/images/README.md](docs/public-docs/images/README.md).
+- Usa esas rutas relativas cuando quieras enlazar imágenes desde el resto de la documentación pública.
 
 ## Desarrollo local (rápido)
 

@@ -18,6 +18,7 @@ Este documento amplía información técnica y operativa del proyecto: stack, de
 - Panel admin: gestión de certificaciones, preguntas, plantillas, import/export, usuarios y dashboard.
 - Servicios: scoring, elegibilidad, import/export ZIP, validación CSV, versionado y reglas automáticas.
 - Jobs/Comandos: import queue, purga/retención de datos, exportaciones, scheduler commands.
+- Documentación visual: `docs/public-docs/images/` contiene capturas y recursos gráficos usados por la documentación pública.
 
 ## Desarrollo local
 
@@ -91,6 +92,12 @@ Nota: ver `phpunit.xml` para variables de entorno recomendadas (DB de testing, c
 
 - Hacer backups regulares de la base de datos y de `public/Certificates` (assets exportados).
 - Mantener un proceso de restauración documentado y probado en staging.
+
+## Documentación visual y assets
+
+- `docs/public-docs/images/` agrupa las capturas que ilustran el producto y sus flujos.
+- Estas imágenes se usan como soporte para guías públicas, panel admin y documentación funcional.
+- Si se añaden nuevas capturas, conviene referenciarlas desde los Markdown de `docs/public-docs/` para mantener la trazabilidad.
 
 ## Seguridad y buenas prácticas
 
